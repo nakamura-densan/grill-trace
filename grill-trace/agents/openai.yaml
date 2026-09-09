@@ -1,0 +1,3 @@
+interface:
+  display_name: "Grill Trace"
+  short_description: "grillingの質問をHTML化し、回答証跡を保持"
