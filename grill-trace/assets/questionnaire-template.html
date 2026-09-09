@@ -77,6 +77,12 @@
 
     function setNotice(message, kind='info') { els.notice.textContent=message; els.notice.className=`notice show ${kind}`; }
     function setSaveState(message, kind='') { els.saveState.textContent=message; els.saveState.className=`save-state${kind ? ` ${kind}` : ''}`; }
+    function formatJapanDateTime(value) {
+      const date=new Date(value);
+      if(Number.isNaN(date.getTime())) return value;
+      const formatted=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(date);
+      return `${formatted} JST`;
+    }
     function normalizeResponse(response) { return { selected:Array.isArray(response?.selected)?response.selected:[], selectedLabels:Array.isArray(response?.selectedLabels)?response.selectedLabels:[], freeText:typeof response?.freeText==='string'?response.freeText:'' }; }
     function getResponse(question) { return normalizeResponse(question.response); }
     function setResponse(question, response) { question.response=response; state.dirty=true; setSaveState('未保存の変更があります。'); renderProgress(); const card=document.querySelector(`[data-question-id=\"${CSS.escape(question.id)}\"]`); if(card) card.classList.toggle('missing', question.required&&!isAnswered(question)); }
@@ -144,13 +150,13 @@
 
     async function loadRound(roundId) {
       if(state.dirty && !confirm('未保存の変更があります。破棄して別の確認項目を開きますか？')) return;
-      try { const response=await fetch(`/api/rounds/${encodeURIComponent(roundId)}`,{cache:'no-store'}); const data=await response.json(); if(!response.ok) throw new Error(data.error||`HTTP ${response.status}`); state.round=data; state.activeRoundId=roundId; state.dirty=false; renderSidebar(); renderRoundHeader(); renderQuestions(); setSaveState(data.updatedAt?`最終保存: ${new Date(data.updatedAt).toLocaleString()}`:'まだ回答は保存されていません。'); }
+      try { const response=await fetch(`/api/rounds/${encodeURIComponent(roundId)}`,{cache:'no-store'}); const data=await response.json(); if(!response.ok) throw new Error(data.error||`HTTP ${response.status}`); state.round=data; state.activeRoundId=roundId; state.dirty=false; renderSidebar(); renderRoundHeader(); renderQuestions(); setSaveState(data.updatedAt?`最終保存: ${formatJapanDateTime(data.updatedAt)}`:'まだ回答は保存されていません。'); }
       catch(error){ setNotice(`確認事項の読み込みに失敗しました: ${error.message}`,'error'); }
     }
 
     async function saveRound() {
       if(!state.round) return; const missing=state.round.questions.filter(q=>q.required&&!isAnswered(q)); if(missing.length){document.querySelector(`[data-question-id="${CSS.escape(missing[0].id)}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});setSaveState(`未回答の必須項目が ${missing.length} 件あります。`,'error');return;}
-      try { const response=await fetch(`/api/rounds/${encodeURIComponent(state.round.roundId)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(state.round)}); const data=await response.json(); if(!response.ok) throw new Error(data.error||`HTTP ${response.status}`); state.round=data; state.dirty=false; await loadTrace(false); setSaveState('回答を保存しました。','success'); renderRoundHeader(); renderQuestions(); }
+      try { const response=await fetch(`/api/rounds/${encodeURIComponent(state.round.roundId)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(state.round)}); const data=await response.json(); if(!response.ok) throw new Error(data.error||`HTTP ${response.status}`); state.round=data; state.dirty=false; await loadTrace(false); setSaveState(data.updatedAt?`最終保存: ${formatJapanDateTime(data.updatedAt)}`:'回答を保存しました。','success'); renderRoundHeader(); renderQuestions(); }
       catch(error){ setSaveState(`保存に失敗しました: ${error.message}`,'error'); }
     }
 
